@@ -1,0 +1,332 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  SUPER_ADMIN
+  POLITICAL_COORDINATOR
+  AREA_MANAGER
+  LEGISLATOR
+  BASIC_USER
+}
+
+enum ExpedienteStatus {
+  DRAFT
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+}
+
+enum SurveyStatus {
+  ACTIVE
+  CLOSED
+  DRAFT
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  name        String
+  role        Role     @default(BASIC_USER)
+  avatar      String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  areaAssignments  AreaUser[]
+  expedientes      ExpedienteUser[]
+  messages         Message[]
+  documents        Document[]
+  activityLogs     ActivityLog[]
+  mapPins          MapPinUser[]
+  coordinatorOf    Coordinator? @relation("CoordinatorUser")
+  surveyResponses  SurveyResponse[]
+
+  @@map("users")
+}
+
+model Area {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  type        String   @default("general")
+  color       String   @default("#3B82F6")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        AreaUser[]
+  documents    Document[]
+  expedientes  Expediente[]
+  channels     Channel[]
+  surveys      Survey[]
+  coordinators CoordinatorArea[]
+
+  @@map("areas")
+}
+
+model AreaUser {
+  id        String   @id @default(uuid())
+  userId    String
+  areaId    String
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area  Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, areaId])
+  @@map("area_users")
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  filename    String
+  path        String
+  mimeType    String
+  size        Int
+  version     Int      @default(1)
+  tags        String[]
+  uploadedById String
+  areaId      String?
+  expedienteId String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  uploadedBy   User        @relation(fields: [uploadedById], references: [id])
+  area         Area?       @relation(fields: [areaId], references: [id])
+  expediente   Expediente? @relation(fields: [expedienteId], references: [id])
+  versions     DocumentVersion[]
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id         String   @id @default(uuid())
+  documentId String
+  version    Int
+  filename   String
+  path       String
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_versions")
+}
+
+model Expediente {
+  id          String           @id @default(uuid())
+  title       String
+  description String?
+  status      ExpedienteStatus @default(DRAFT)
+  areaId      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  area      Area?             @relation(fields: [areaId], references: [id])
+  users     ExpedienteUser[]
+  documents Document[]
+  messages  Message[]
+  timeline  ExpedienteEvent[]
+
+  @@map("expedientes")
+}
+
+model ExpedienteUser {
+  id           String @id @default(uuid())
+  expedienteId String
+  userId       String
+
+  expediente Expediente @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([expedienteId, userId])
+  @@map("expediente_users")
+}
+
+model ExpedienteEvent {
+  id           String   @id @default(uuid())
+  expedienteId String
+  description  String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  expediente Expediente @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+
+  @@map("expediente_events")
+}
+
+model Channel {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   @default("area")
+  areaId    String?
+  refId     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  area     Area?     @relation(fields: [areaId], references: [id])
+  messages Message[]
+
+  @@map("channels")
+}
+
+model Message {
+  id           String   @id @default(uuid())
+  content      String
+  senderId     String
+  channelId    String?
+  expedienteId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sender     User        @relation(fields: [senderId], references: [id])
+  channel    Channel?    @relation(fields: [channelId], references: [id])
+  expediente Expediente? @relation(fields: [expedienteId], references: [id])
+
+  @@map("messages")
+}
+
+model Survey {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      SurveyStatus @default(DRAFT)
+  accessToken String       @unique @default(uuid())
+  areaId      String?
+  questions   Json
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  area      Area?            @relation(fields: [areaId], references: [id])
+  responses SurveyResponse[]
+  mapPins   MapPinSurvey[]
+
+  @@map("surveys")
+}
+
+model SurveyResponse {
+  id        String   @id @default(uuid())
+  surveyId  String
+  userId    String?
+  answers   Json
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@map("survey_responses")
+}
+
+model Territory {
+  id          String   @id @default(uuid())
+  name        String
+  code        String?  @unique
+  description String?
+  polygon     Json?
+  metadata    Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  mapPins MapPin[]
+
+  @@map("territories")
+}
+
+model MapPin {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  lat         Float
+  lng         Float
+  category    String   @default("general")
+  color       String   @default("#3B82F6")
+  territoryId String?
+  metadata    Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  territory Territory?    @relation(fields: [territoryId], references: [id])
+  users     MapPinUser[]
+  surveys   MapPinSurvey[]
+
+  @@map("map_pins")
+}
+
+model MapPinUser {
+  id       String @id @default(uuid())
+  mapPinId String
+  userId   String
+
+  mapPin MapPin @relation(fields: [mapPinId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([mapPinId, userId])
+  @@map("map_pin_users")
+}
+
+model MapPinSurvey {
+  id       String @id @default(uuid())
+  mapPinId String
+  surveyId String
+
+  mapPin MapPin @relation(fields: [mapPinId], references: [id], onDelete: Cascade)
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@unique([mapPinId, surveyId])
+  @@map("map_pin_surveys")
+}
+
+model Coordinator {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  bio         String?
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User              @relation("CoordinatorUser", fields: [userId], references: [id])
+  areas CoordinatorArea[]
+
+  @@map("coordinators")
+}
+
+model CoordinatorArea {
+  id            String @id @default(uuid())
+  coordinatorId String
+  areaId        String
+
+  coordinator Coordinator @relation(fields: [coordinatorId], references: [id], onDelete: Cascade)
+  area        Area        @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([coordinatorId, areaId])
+  @@map("coordinator_areas")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}

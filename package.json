@@ -1,0 +1,15 @@
+{
+  "name": "orbis-velthor",
+  "version": "1.0.0",
+  "description": "Orbis Political Management Platform by Velthor Technologies",
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "db:setup": "cd server && npm run db:push && npm run db:seed",
+    "db:migrate": "cd server && npm run db:migrate",
+    "build": "cd client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

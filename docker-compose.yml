@@ -1,0 +1,49 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: orbis_postgres
+    environment:
+      POSTGRES_USER: orbis
+      POSTGRES_PASSWORD: orbis_password
+      POSTGRES_DB: orbis_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orbis -d orbis_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build: ./server
+    container_name: orbis_server
+    environment:
+      DATABASE_URL: postgresql://orbis:orbis_password@postgres:5432/orbis_db
+      JWT_SECRET: change_this_in_production_very_long_secret
+      JWT_EXPIRES_IN: 7d
+      PORT: 4000
+      NODE_ENV: production
+      CLIENT_URL: http://localhost:5173
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/src/uploads
+
+  client:
+    build: ./client
+    container_name: orbis_client
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  uploads_data:

@@ -315,6 +315,12 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# Orbis specific
+dist/
+.env
+server/src/uploads/
+client/dist/
+
 # Visual Studio 6 build log
 *.plg
 
