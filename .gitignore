@@ -427,3 +427,11 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Node / Orbis specific
+dist/
+build/
+.env
+uploads/
+*.log
+.DS_Store
